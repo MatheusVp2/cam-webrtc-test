@@ -30,7 +30,9 @@ Digite no app o IP que o terminal do PC imprimiu e toque em **Conectar**.
 
 ## Notas de build (Android)
 
-- `minSdk 23`, exigência do `flutter_webrtc`.
+- `minSdk 23` no Gradle, mas o APK sai com **24**: o merge de manifests pega
+  o maior valor entre o app e as bibliotecas, e o embedding do Flutter pede 24.
+  Na prática o app roda em Android 7.0 ou mais novo.
 - `compileSdk`/`targetSdk` fixados em **36**: o Flutter aponta para o
   `android-37` de preview, que o SDK local instala como `android-37.0` e o
   Gradle não encontra.

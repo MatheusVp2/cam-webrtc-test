@@ -21,7 +21,9 @@ android {
         applicationId = "tramapartners.cam.trama_cam_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // flutter_webrtc exige no mínimo 23 (Android 6).
+        // flutter_webrtc exige no mínimo 23 (Android 6), mas o embedding do
+        // Flutter pede 24, e o merge de manifests fica com o maior: o APK
+        // final sai com minSdk 24.
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
