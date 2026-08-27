@@ -1,0 +1,186 @@
+# Compila o app para Android e iOS, e publica os dois numa Release quando o
+# push é de uma tag v*.
+#
+# O .apk sai assinado com a chave de debug do Flutter, então instala direto num
+# aparelho Android. O .ipa sai SEM assinatura e precisa do SideStore para
+# instalar num iPhone — veja docs/ios-sideload.md.
+#
+# Se você subir só a pasta trama_cam_mobile/ como repositório em vez da raiz,
+# mova este arquivo para trama_cam_mobile/.github/workflows/ e troque
+# DIR_APP para "." abaixo.
+
+name: Build — APK e IPA
+
+on:
+  # Botão "Run workflow" na aba Actions.
+  workflow_dispatch:
+
+  # Todo push nesses branches, mais qualquer tag v*. Uma tag também publica os
+  # binários numa Release, que dá link direto — bem mais fácil de baixar pelo
+  # celular do que um artifact.
+  #
+  # Sem filtro de `paths` de propósito: o GitHub exige que branch/tag E paths
+  # batam ao mesmo tempo, então um filtro de path faria as tags nunca rodarem.
+  push:
+    branches: [main, master]
+    tags: ['v*']
+
+env:
+  DIR_APP: trama_cam_mobile
+  # Mesma versão usada no desenvolvimento local, para o CI não surpreender.
+  FLUTTER_VERSION: 3.47.1
+
+jobs:
+  # --------------------------------------------------------------------------
+  android:
+    # Runner Linux: barato, rápido, e já vem com o SDK do Android instalado.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar o Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # O Gradle do projeto compila com JVM target 17.
+          java-version: '17'
+          cache: gradle
+
+      - name: Instalar o Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Versões (para depurar quando o build quebrar)
+        run: |
+          flutter --version
+          java -version
+          echo "Plataformas do SDK disponíveis no runner:"
+          ls "$ANDROID_HOME/platforms" || true
+
+      - name: Baixar dependências
+        working-directory: ${{ env.DIR_APP }}
+        run: flutter pub get
+
+      - name: Compilar o APK universal
+        working-directory: ${{ env.DIR_APP }}
+        # Universal: carrega as libs nativas das três arquiteturas. Pesado, mas
+        # instala em qualquer aparelho sem você precisar saber qual é o chip.
+        run: flutter build apk --release
+
+      - name: Compilar os APKs por arquitetura
+        working-directory: ${{ env.DIR_APP }}
+        # Bem menores. O arm64-v8a cobre qualquer Android moderno.
+        run: flutter build apk --release --split-per-abi
+
+      - name: Renomear para nomes amigáveis
+        working-directory: ${{ env.DIR_APP }}/build/app/outputs/flutter-apk
+        run: |
+          mv app-release.apk           trama-cam-universal.apk
+          mv app-arm64-v8a-release.apk trama-cam-arm64-v8a.apk
+          ls -lh trama-cam-*.apk
+
+      - name: Publicar como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trama-cam-apk
+          path: ${{ env.DIR_APP }}/build/app/outputs/flutter-apk/trama-cam-*.apk
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  ios:
+    # Runner macOS: obrigatório, o Xcode só existe aqui.
+    # Em repositório público os minutos de macOS são gratuitos.
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar o Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Versões (para depurar quando o build quebrar)
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: Baixar dependências
+        working-directory: ${{ env.DIR_APP }}
+        run: flutter pub get
+
+      - name: Compilar sem assinatura
+        working-directory: ${{ env.DIR_APP }}
+        # --no-codesign: não temos certificado da Apple e nem queremos um aqui.
+        # O CocoaPods e o ios/Podfile são gerados pelo próprio Flutter na
+        # primeira execução, então não precisam existir no repositório.
+        run: flutter build ios --release --no-codesign
+
+      - name: Empacotar o .ipa
+        working-directory: ${{ env.DIR_APP }}
+        # Um .ipa é só um zip com o app dentro de uma pasta chamada Payload.
+        # Como o app não está assinado, não há nada mais a fazer.
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr trama-cam-unsigned.ipa Payload
+          ls -lh trama-cam-unsigned.ipa
+
+      - name: Publicar como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trama-cam-ipa
+          path: ${{ env.DIR_APP }}/trama-cam-unsigned.ipa
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  release:
+    # Só quando o push é de uma tag v*, e só se os dois builds passaram.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+
+    # Em repositórios criados depois de fevereiro de 2023 o GITHUB_TOKEN nasce
+    # somente-leitura. Sem isto o passo que cria a Release leva 403.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Baixar os binários dos dois jobs
+        uses: actions/download-artifact@v4
+        with:
+          path: binarios
+          # Junta tudo numa pasta só, sem subpasta por artifact.
+          merge-multiple: true
+
+      - name: Conferir o que veio
+        run: ls -lh binarios
+
+      - name: Criar a Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: binarios/*
+          body: |
+            ## Android
+
+            `trama-cam-arm64-v8a.apk` serve em qualquer Android moderno.
+            Se o aparelho recusar, use `trama-cam-universal.apk`.
+
+            Assinado com a chave de debug do Flutter: instala direto, basta
+            liberar "fontes desconhecidas" para o app que abrir o arquivo.
+            Requer Android 7.0 ou mais novo.
+
+            ## iOS
+
+            `trama-cam-unsigned.ipa` está **sem assinatura** e não instala
+            sozinho. Use o SideStore — veja `docs/ios-sideload.md`.

@@ -4,7 +4,7 @@ Contexto: desenvolvimento em Linux, iPhone 15 Pro com iOS 26.6.
 
 ## O que o CI resolve e o que não resolve
 
-`.github/workflows/ios.yml` compila o app num runner macOS do GitHub e gera
+`.github/workflows/build.yml` compila o app num runner macOS do GitHub e gera
 `trama-cam-unsigned.ipa`. Em repositório público esses minutos de macOS são
 gratuitos.
 
