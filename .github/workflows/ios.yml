@@ -36,6 +36,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
 
+    # Em repositórios criados depois de fevereiro de 2023 o GITHUB_TOKEN nasce
+    # somente-leitura. Sem isto o passo que cria a Release leva 403.
+    permissions:
+      contents: write
+
     steps:
       - name: Baixar o código
         uses: actions/checkout@v4
