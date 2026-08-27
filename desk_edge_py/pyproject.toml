@@ -1,0 +1,12 @@
+[project]
+name = "desk-edge-py"
+version = "0.1.0"
+description = "Desk edge do trama-cam: recebe o vídeo do celular por WebRTC"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiortc>=1.15.0",
+    "numpy>=2.5.2",
+    "opencv-python>=5.0.0.93",
+    "websockets>=17.1",
+]

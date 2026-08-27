@@ -1,0 +1,90 @@
+# Build do app iOS sem assinatura, num runner macOS do GitHub.
+#
+# O .ipa que sai daqui NÃO instala sozinho num iPhone: falta assinatura.
+# Quem assina é o SideStore, já no aparelho, com um Apple ID grátis.
+# Veja docs/ios-sideload.md.
+#
+# Se você subir só a pasta trama_cam_mobile/ como repositório em vez da raiz,
+# mova este arquivo para trama_cam_mobile/.github/workflows/ e troque
+# DIR_APP para "." abaixo.
+
+name: iOS — IPA sem assinatura
+
+on:
+  # Botão "Run workflow" na aba Actions.
+  workflow_dispatch:
+
+  # Todo push nesses branches, mais qualquer tag v*. Uma tag também publica
+  # o .ipa numa Release, que dá link direto — muito mais fácil de baixar pelo
+  # Safari do iPhone do que um artifact.
+  #
+  # Sem filtro de `paths` de propósito: o GitHub exige que branch/tag E paths
+  # batam ao mesmo tempo, então um filtro de path faria as tags nunca rodarem.
+  push:
+    branches: [main, master]
+    tags: ['v*']
+
+env:
+  DIR_APP: trama_cam_mobile
+  # Mesma versão usada no desenvolvimento local, para o CI não surpreender.
+  FLUTTER_VERSION: 3.47.1
+
+jobs:
+  build:
+    # Runner macOS: obrigatório, o Xcode só existe aqui.
+    # Em repositório público os minutos de macOS são gratuitos.
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar o Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Versões (para depurar quando o build quebrar)
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: Baixar dependências
+        working-directory: ${{ env.DIR_APP }}
+        run: flutter pub get
+
+      - name: Compilar sem assinatura
+        working-directory: ${{ env.DIR_APP }}
+        # --no-codesign: não temos certificado da Apple e nem queremos um aqui.
+        # O CocoaPods e o ios/Podfile são gerados pelo próprio Flutter na
+        # primeira execução, então não precisam existir no repositório.
+        run: flutter build ios --release --no-codesign
+
+      - name: Empacotar o .ipa
+        working-directory: ${{ env.DIR_APP }}
+        # Um .ipa é só um zip com o app dentro de uma pasta chamada Payload.
+        # Como o app não está assinado, não há nada mais a fazer.
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr trama-cam-unsigned.ipa Payload
+          ls -lh trama-cam-unsigned.ipa
+
+      - name: Publicar como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trama-cam-ipa
+          path: ${{ env.DIR_APP }}/trama-cam-unsigned.ipa
+          retention-days: 14
+
+      - name: Publicar na Release (só quando o push é de uma tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.DIR_APP }}/trama-cam-unsigned.ipa
+          body: |
+            IPA **sem assinatura**. Instale com o SideStore — veja
+            `docs/ios-sideload.md`.

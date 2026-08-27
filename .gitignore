@@ -1,0 +1,46 @@
+# Ignores gerais do monorepo. Cada projeto tem o seu próprio .gitignore com as
+# regras específicas: trama_cam_mobile/.gitignore (Flutter, mais um por
+# plataforma em android/, ios/, linux/, macos/, windows/) e
+# desk_edge_py/.gitignore (Python).
+
+# --- Sistema operacional ---------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+*~
+
+# --- Editores e IDEs -------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+.fleet/
+.nvim.lua
+
+# --- Ferramentas de IA -----------------------------------------------------
+.claude/
+CLAUDE.local.md
+
+# --- Rascunhos e logs ------------------------------------------------------
+scratch/
+tmp/
+*.log
+
+# --- Segredos --------------------------------------------------------------
+# Nada de credencial, keystore ou certificado no repositório — ele é público.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.keystore
+*.jks
+*.mobileprovision
