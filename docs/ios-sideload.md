@@ -11,6 +11,12 @@ gratuitos.
 O que ele **não** faz é assinar o app. Sem assinatura, o iPhone recusa a
 instalação. Assinar exige uma chave da Apple, e é aí que estão as escolhas.
 
+## Permissão de rede local
+
+Na primeira conexão o iOS pergunta se o app pode acessar a rede local.
+**Precisa aceitar** — sem isso o app não fala com o PC e nada funciona. Se
+negar por engano: Ajustes → trama-cam → Rede Local.
+
 ## Por que TrollStore não serve aqui
 
 TrollStore assina permanentemente, sem Apple ID e sem expirar — mas depende de
@@ -19,33 +25,64 @@ iOS 16.6.1 (e a 17.0 exata). iOS 26.6 está muito além disso.
 
 ## Caminho A — SideStore (grátis)
 
-Assina com um Apple ID comum. Limitações que vêm da Apple, não da ferramenta:
+Assina com um Apple ID comum. A documentação oficial cobre iOS 15.0 até 26.x,
+então o iOS 26.6 está dentro.
 
-- certificado válido por **7 dias** (o SideStore renova sozinho no aparelho,
-  sem precisar do PC ligado, desde que o pareamento esteja configurado)
+Limitações que vêm da Apple, não da ferramenta:
+
+- certificado válido por **7 dias** (o SideStore renova sozinho no aparelho)
 - no máximo **3 apps** sideloaded ao mesmo tempo
 - 10 App IDs novos por semana
-- **Modo de Desenvolvedor** precisa estar ligado no iPhone:
-  Ajustes → Privacidade e Segurança → Modo de Desenvolvedor
+- o iPhone precisa ter **código de acesso** configurado
+- **Modo de Desenvolvedor** ligado, em Ajustes → Privacidade e Segurança
+- tudo por **Wi-Fi**; rede móvel não serve
 
-Forma geral do processo:
+Use uma **Apple ID separada** da sua principal: o SideStore precisa da senha
+para gerar o certificado.
 
-1. Ligar o Modo de Desenvolvedor no iPhone.
-2. Gerar um *pairing file* do aparelho pelo Linux. As ferramentas são as do
-   `libimobiledevice` (`idevicepair`), com o iPhone no cabo USB e o "Confiar
-   neste computador" aceito.
-3. Instalar o próprio SideStore no aparelho.
-4. Entrar com o Apple ID dentro do SideStore.
-5. Baixar o `.ipa` do trama-cam pelo Safari e abrir no SideStore.
+### No computador (Ubuntu 24.04 x86_64)
 
-> **Confira a compatibilidade antes de investir tempo.** O procedimento de
-> instalação do SideStore muda com frequência e o iOS 26 é recente. Siga a
-> documentação oficial em <https://sidestore.io> para a versão atual, e
-> verifique lá se o iOS 26.6 já é suportado — se ainda não for, o caminho B é
-> a alternativa.
+```bash
+sudo apt install usbmuxd
+sudo systemctl enable --now usbmuxd
+```
 
-Dica: use uma **Apple ID separada**, não a sua principal. O SideStore precisa
-da senha para gerar o certificado.
+Baixe o **iloader** (`.deb` x86_64) em <https://docs.sidestore.io> e instale.
+Ele é a ferramenta oficial do lado Linux; substituiu o AltServer e o
+sideserver.
+
+Com o iPhone no cabo USB e o "Confiar neste computador" aceito:
+
+1. Abra o iloader.
+2. Entre com o Apple ID (o campo diferencia maiúsculas de minúsculas).
+3. Selecione o aparelho.
+4. Escolha **Install SideStore (Stable)**.
+
+### No iPhone
+
+1. Instale o **LocalDevVPN** pela App Store. Ele é obrigatório e precisa estar
+   **ligado** toda vez que você instalar, atualizar ou renovar um app.
+2. Ajustes → Geral → VPN e Gerenciamento de Dispositivo → confie na sua Apple
+   Account, em "App de Desenvolvedor".
+3. Ajustes → Privacidade e Segurança → **Modo de Desenvolvedor** → ligar.
+   Escolha "Permitir e Reiniciar" e digite o código depois do boot.
+4. Abra o LocalDevVPN e conecte.
+5. Abra o SideStore e entre com o **mesmo** Apple ID usado no iloader.
+6. Em "My Apps", toque no contador **7 DAYS** para renovar e concluir a
+   configuração.
+
+### Instalar o trama-cam
+
+Baixe o `.ipa` pelo Safari na Release do repositório e abra no SideStore. O
+SideStore reescreve o bundle ID e assina na hora.
+
+A cada 7 dias o certificado vence. Com o LocalDevVPN ligado, o SideStore
+renova sozinho; se o app abrir e fechar na hora, é isso — abra o SideStore e
+force a renovação em My Apps.
+
+> Se o pareamento parar de funcionar depois de uma atualização ou restauração
+> do iOS, é preciso gerar o pairing file de novo — veja o guia de pairing file
+> na documentação do SideStore.
 
 ## Caminho B — Apple Developer Program (US$ 99/ano)
 
